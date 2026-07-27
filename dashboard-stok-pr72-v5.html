@@ -1,0 +1,718 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dashboard Stok — Pupuk Organik Probiotik PR72</title>
+
+<!-- Fonts -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+<!-- Tailwind -->
+<script src="https://cdn.tailwindcss.com"></script>
+<!-- Font Awesome -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<!-- Chart.js + datalabels -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/chartjs-plugin-datalabels/2.2.0/chartjs-plugin-datalabels.min.js"></script>
+
+<script>
+  tailwind.config = {
+    theme: {
+      extend: {
+        colors: {
+          primary: '#2E7D32',
+          darkgreen: '#1B5E20',
+          lightgreen: '#66BB6A',
+          lime: '#AEEA00',
+          graybg: '#F5F5F5',
+          textdark: '#263238'
+        },
+        fontFamily: {
+          poppins: ['Poppins','sans-serif'],
+          inter: ['Inter','sans-serif']
+        },
+        borderRadius: { '20': '20px' }
+      }
+    }
+  }
+</script>
+
+<style>
+  body{ font-family:'Inter',sans-serif; color:#263238; }
+  h1,h2,h3,.font-display{ font-family:'Poppins',sans-serif; }
+
+  /* subtle leaf-dot pattern */
+  .leaf-pattern{
+    background-image: radial-gradient(circle, rgba(46,125,50,0.07) 1.6px, transparent 1.6px);
+    background-size: 22px 22px;
+  }
+
+  .blob{ position:absolute; border-radius:9999px; filter: blur(60px); pointer-events:none; z-index:0; }
+
+  .card{ transition: transform .35s ease, box-shadow .35s ease; }
+  .card:hover{ transform: translateY(-4px); box-shadow: 0 18px 40px -12px rgba(27,94,32,0.35); }
+
+  .fade-in{ animation: fadeIn .5s ease both; }
+  @keyframes fadeIn{ from{opacity:0; transform:translateY(10px);} to{opacity:1; transform:translateY(0);} }
+
+  .modal-panel{ animation: pop .3s ease both; }
+  @keyframes pop{ from{opacity:0; transform:scale(.96) translateY(8px);} to{opacity:1; transform:scale(1) translateY(0);} }
+
+  ::-webkit-scrollbar{ width:6px; height:6px; }
+  ::-webkit-scrollbar-thumb{ background:#a5d6a7; border-radius:10px; }
+  ::-webkit-scrollbar-track{ background:transparent; }
+
+  .tab-btn.active{ background:#1B5E20; color:#fff; }
+  .tab-btn{ transition: all .25s ease; }
+
+  input[type="text"], input[type="number"], input[type="date"]{
+    outline:none; transition: box-shadow .2s ease, border-color .2s ease;
+  }
+  input[type="text"]:focus, input[type="number"]:focus, input[type="date"]:focus{
+    border-color:#2E7D32; box-shadow: 0 0 0 3px rgba(46,125,50,0.15);
+  }
+
+  .fab{ transition: transform .25s ease, box-shadow .25s ease; }
+  .fab:hover{ transform: scale(1.08); }
+
+  @media (prefers-reduced-motion: reduce){
+    .card, .fab, .fade-in, .modal-panel{ animation:none !important; transition:none !important; }
+  }
+</style>
+</head>
+
+<body class="leaf-pattern bg-graybg min-h-screen relative">
+
+<!-- decorative blobs -->
+<div class="blob w-[420px] h-[420px] bg-lightgreen/25 -top-40 -right-32"></div>
+<div class="blob w-[340px] h-[340px] bg-lime/20 bottom-0 -left-24"></div>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 py-6 sm:py-10 relative z-10">
+
+  <!-- ================= HEADER ================= -->
+  <header class="fade-in relative overflow-hidden rounded-[24px] bg-gradient-to-br from-darkgreen via-primary to-lightgreen p-6 sm:p-8 shadow-xl mb-6 sm:mb-8">
+    <div class="absolute -right-10 -top-10 w-52 h-52 rounded-full bg-white/10"></div>
+    <div class="absolute right-24 bottom-[-40px] w-32 h-32 rounded-full bg-lime/20"></div>
+
+    <div class="relative z-10 flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+      <div>
+        <p class="uppercase tracking-[0.25em] text-lime text-xs sm:text-sm font-semibold mb-1">Stock</p>
+        <h1 id="productName" class="font-display text-2xl sm:text-4xl font-bold text-white leading-tight">Pupuk Organik Probiotik PR72</h1>
+        <p id="periodLabel" class="text-white/80 text-sm mt-2">Klik "Pengaturan" untuk mengatur periode laporan</p>
+      </div>
+
+      <div class="flex items-center gap-3 self-start">
+        <button onclick="openModal('umum')" title="Pengaturan" class="w-10 h-10 rounded-full bg-white/15 hover:bg-white/25 text-white flex items-center justify-center transition">
+          <i class="fa-solid fa-gear"></i>
+        </button>
+      </div>
+    </div>
+
+    <div class="relative z-10 mt-6 flex flex-wrap items-center gap-2">
+      <button onclick="exportData()" class="text-xs sm:text-sm px-3 py-2 rounded-lg bg-white/15 hover:bg-white/25 text-white transition"><i class="fa-solid fa-download mr-1"></i> Ekspor Data (JSON)</button>
+      <label class="text-xs sm:text-sm px-3 py-2 rounded-lg bg-white/15 hover:bg-white/25 text-white transition cursor-pointer">
+        <i class="fa-solid fa-upload mr-1"></i> Impor Data
+        <input type="file" accept="application/json" class="hidden" onchange="importData(event)">
+      </label>
+      <button onclick="resetData()" class="text-xs sm:text-sm px-3 py-2 rounded-lg bg-white/10 hover:bg-red-500/40 text-white transition"><i class="fa-solid fa-rotate-left mr-1"></i> Reset</button>
+      <span class="text-[11px] text-white/60 ml-1"><i class="fa-solid fa-circle-check text-lime mr-1"></i>Tersimpan otomatis di browser ini</span>
+    </div>
+  </header>
+
+  <!-- ================= KPI CARDS ================= -->
+  <section class="grid grid-cols-1 md:grid-cols-3 gap-5 sm:gap-6 mb-8 sm:mb-10">
+
+    <div class="card fade-in relative rounded-20 shadow-lg p-6 h-[150px] flex items-center justify-between bg-gradient-to-br from-darkgreen to-primary text-white overflow-hidden">
+      <button onclick="openModal('stok')" class="absolute top-3 right-3 w-7 h-7 rounded-full bg-white/15 hover:bg-white/25 flex items-center justify-center text-xs"><i class="fa-solid fa-pen"></i></button>
+      <div>
+        <p class="text-white/80 text-sm font-medium mb-2">Total (Karung)</p>
+        <p id="kpiKarung" class="font-display text-3xl sm:text-4xl font-bold">0</p>
+      </div>
+      <div class="w-14 h-14 rounded-2xl bg-white/15 flex items-center justify-center text-2xl"><i class="fa-solid fa-box"></i></div>
+    </div>
+
+    <div class="card fade-in relative rounded-20 shadow-lg p-6 h-[150px] flex items-center justify-between bg-gradient-to-br from-lightgreen to-lime text-darkgreen overflow-hidden">
+      <button onclick="openModal('umum')" class="absolute top-3 right-3 w-7 h-7 rounded-full bg-darkgreen/10 hover:bg-darkgreen/20 flex items-center justify-center text-xs"><i class="fa-solid fa-pen"></i></button>
+      <div>
+        <p class="text-darkgreen/80 text-sm font-medium mb-2">Total (Kilogram)</p>
+        <p id="kpiKg" class="font-display text-3xl sm:text-4xl font-bold">0</p>
+      </div>
+      <div class="w-14 h-14 rounded-2xl bg-white/40 flex items-center justify-center text-2xl"><i class="fa-solid fa-scale-balanced"></i></div>
+    </div>
+
+    <div class="card fade-in relative rounded-20 shadow-lg p-6 h-[150px] flex items-center justify-between bg-gradient-to-br from-darkgreen to-primary text-white overflow-hidden">
+      <button onclick="openModal('umum')" class="absolute top-3 right-3 w-7 h-7 rounded-full bg-white/15 hover:bg-white/25 flex items-center justify-center text-xs"><i class="fa-solid fa-pen"></i></button>
+      <div>
+        <p class="text-white/80 text-sm font-medium mb-2">Total (Tonase)</p>
+        <p id="kpiTon" class="font-display text-3xl sm:text-4xl font-bold">0</p>
+      </div>
+      <div class="w-14 h-14 rounded-2xl bg-white/15 flex items-center justify-center text-2xl"><i class="fa-solid fa-truck"></i></div>
+    </div>
+  </section>
+
+  <!-- ================= CHART AREA ================= -->
+  <section class="fade-in rounded-[24px] bg-white shadow-lg p-5 sm:p-7 mb-8 sm:mb-10">
+    <div class="flex items-center justify-between mb-5">
+      <h2 class="font-display text-lg sm:text-xl font-semibold text-textdark">Produksi <span id="chartPeriodLabel" class="text-primary font-normal text-sm sm:text-base">(atur periode di Pengaturan)</span></h2>
+      <button onclick="openModal('produksi')" class="text-xs sm:text-sm px-3 py-2 rounded-lg bg-graybg hover:bg-lightgreen/30 text-primary font-medium transition"><i class="fa-solid fa-pen mr-1"></i> Input Produksi</button>
+    </div>
+
+    <div class="grid md:grid-cols-2 gap-6">
+      <div>
+        <p class="text-sm font-semibold text-textdark mb-3 flex items-center gap-2"><span class="w-2.5 h-2.5 rounded-full bg-lime"></span>Frekuensi Produksi (Kali)</p>
+        <canvas id="chartFrekuensi" height="230"></canvas>
+      </div>
+      <div>
+        <p class="text-sm font-semibold text-textdark mb-3 flex items-center gap-2"><span class="w-2.5 h-2.5 rounded-full bg-primary"></span>Output Produksi (Karung)</p>
+        <canvas id="chartOutput" height="230"></canvas>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= BARANG MASUK / KELUAR ================= -->
+  <section class="mb-8 sm:mb-10">
+
+    <!-- Ringkasan -->
+    <div class="grid grid-cols-1 sm:grid-cols-2 gap-5 sm:gap-6 mb-6">
+      <div class="card fade-in relative rounded-20 shadow-lg p-6 h-[130px] flex items-center justify-between bg-gradient-to-br from-primary to-darkgreen text-white overflow-hidden">
+        <div>
+          <p class="text-white/80 text-sm font-medium mb-2">Total Barang Masuk</p>
+          <p id="totalMasuk" class="font-display text-3xl font-bold">0</p>
+        </div>
+        <div class="w-14 h-14 rounded-2xl bg-white/15 flex items-center justify-center text-2xl"><i class="fa-solid fa-arrow-down"></i></div>
+      </div>
+
+      <div class="card fade-in relative rounded-20 shadow-lg p-6 h-[130px] flex items-center justify-between bg-gradient-to-br from-amber-500 to-amber-700 text-white overflow-hidden">
+        <div>
+          <p class="text-white/80 text-sm font-medium mb-2">Total Barang Keluar</p>
+          <p id="totalKeluar" class="font-display text-3xl font-bold">0</p>
+        </div>
+        <div class="w-14 h-14 rounded-2xl bg-white/15 flex items-center justify-center text-2xl"><i class="fa-solid fa-arrow-up"></i></div>
+      </div>
+    </div>
+
+    <!-- Grafik Masuk vs Keluar -->
+    <div class="fade-in rounded-[24px] bg-white shadow-lg p-5 sm:p-7 mb-6">
+      <h3 class="font-display text-base sm:text-lg font-semibold text-textdark mb-4"><i class="fa-solid fa-chart-column text-primary mr-2"></i>Grafik Masuk vs Keluar per Bulan</h3>
+      <canvas id="chartMasukKeluar" height="220"></canvas>
+    </div>
+
+    <!-- Riwayat Transaksi -->
+    <div class="fade-in rounded-[24px] bg-white shadow-lg p-5 sm:p-7">
+      <div class="flex flex-wrap items-center justify-between gap-3 mb-5">
+        <h3 class="font-display text-base sm:text-lg font-semibold text-textdark">Riwayat Transaksi</h3>
+        <div class="flex items-center gap-2">
+          <div class="relative">
+            <i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-textdark/30 text-xs"></i>
+            <input type="text" id="searchTransaksi" oninput="renderTransaksiTable()" placeholder="Cari transaksi..." class="text-sm rounded-lg border border-gray-200 pl-8 pr-3 py-2 w-40 sm:w-56">
+          </div>
+          <button onclick="openTambahModal()" class="text-sm px-4 py-2 rounded-lg bg-primary hover:bg-darkgreen text-white font-medium transition whitespace-nowrap"><i class="fa-solid fa-plus mr-1"></i> Tambah Data</button>
+        </div>
+      </div>
+
+      <div class="overflow-x-auto max-h-[420px] overflow-y-auto">
+        <table class="w-full text-sm">
+          <thead class="sticky top-0 bg-white">
+            <tr class="text-left text-xs text-textdark/60 border-b border-gray-100">
+              <th class="py-2 pr-3">Tanggal</th>
+              <th class="py-2 px-3">Jenis</th>
+              <th class="py-2 px-3">Jumlah (Karung)</th>
+              <th class="py-2 px-3">Keterangan</th>
+              <th class="py-2 pl-3 text-right">Aksi</th>
+            </tr>
+          </thead>
+          <tbody id="transaksiRows"></tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= FOOTER BANNER ================= -->
+  <footer class="fade-in relative overflow-hidden rounded-[20px] bg-gradient-to-r from-darkgreen to-primary p-4 sm:p-5 flex items-center justify-between">
+    <div class="absolute -left-8 -bottom-10 w-28 h-28 rounded-full bg-lime/15"></div>
+    <span class="relative z-10 text-white/70 text-xs">Dashboard Stok &amp; Produksi — Diperbarui otomatis dari data yang Anda input</span>
+    <span id="footerBadge" class="relative z-10 text-xs px-3 py-1 rounded-full bg-white/15 text-white font-medium">GTA@2026</span>
+  </footer>
+
+</div>
+
+<!-- ================= FAB ================= -->
+<button onclick="openModal('umum')" class="fab fixed bottom-6 right-6 w-14 h-14 rounded-full bg-gradient-to-br from-primary to-darkgreen text-white shadow-2xl flex items-center justify-center text-xl z-40">
+  <i class="fa-solid fa-pen"></i>
+</button>
+
+<!-- ================= TOAST ================= -->
+<div id="toast" class="fixed bottom-24 right-6 z-50 hidden">
+  <div class="bg-darkgreen text-white text-sm px-4 py-3 rounded-xl shadow-xl flex items-center gap-2 fade-in">
+    <i class="fa-solid fa-circle-check text-lime"></i> <span id="toastMsg">Tersimpan</span>
+  </div>
+</div>
+
+<!-- ================= MODAL ================= -->
+<div id="modalOverlay" class="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 hidden items-center justify-center p-4">
+  <div class="modal-panel bg-white rounded-[24px] shadow-2xl w-full max-w-2xl max-h-[88vh] overflow-y-auto">
+    <div class="sticky top-0 bg-white flex items-center justify-between px-6 pt-6 pb-3 border-b border-gray-100 z-10">
+      <h3 class="font-display text-lg font-semibold text-textdark">Input Data</h3>
+      <button onclick="closeModal()" class="w-8 h-8 rounded-full hover:bg-gray-100 flex items-center justify-center text-textdark/60"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+
+    <div class="px-6 pt-4 flex flex-wrap gap-2">
+      <button data-tab="umum" onclick="switchTab('umum')" class="tab-btn px-3 py-2 rounded-lg text-xs font-medium bg-graybg text-textdark">Umum</button>
+      <button data-tab="stok" onclick="switchTab('stok')" class="tab-btn px-3 py-2 rounded-lg text-xs font-medium bg-graybg text-textdark">Stok Awal</button>
+      <button data-tab="produksi" onclick="switchTab('produksi')" class="tab-btn px-3 py-2 rounded-lg text-xs font-medium bg-graybg text-textdark">Produksi Bulanan</button>
+    </div>
+
+    <div class="p-6">
+
+      <!-- TAB: UMUM -->
+      <div id="tab-umum" class="tab-content space-y-4">
+        <div>
+          <label class="text-xs font-medium text-textdark/70">Nama Produk</label>
+          <input type="text" id="inpProductName" class="w-full mt-1 rounded-lg border border-gray-200 px-3 py-2 text-sm">
+        </div>
+        <div>
+          <label class="text-xs font-medium text-textdark/70">Label Periode Laporan</label>
+          <input type="text" id="inpPeriode" placeholder="Contoh: Jan 2026 - 25 Juli 2026" class="w-full mt-1 rounded-lg border border-gray-200 px-3 py-2 text-sm">
+        </div>
+        <div>
+          <label class="text-xs font-medium text-textdark/70">Berat per Karung (kg)</label>
+          <input type="number" id="inpBerat" min="0" class="w-full mt-1 rounded-lg border border-gray-200 px-3 py-2 text-sm">
+        </div>
+        <button onclick="saveUmum()" class="w-full py-2.5 rounded-lg bg-primary hover:bg-darkgreen text-white text-sm font-medium transition">Simpan Pengaturan</button>
+      </div>
+
+      <!-- TAB: STOK AWAL -->
+      <div id="tab-stok" class="tab-content space-y-4 hidden">
+        <div>
+          <label class="text-xs font-medium text-textdark/70">Stok Awal (Karung)</label>
+          <input type="number" id="inpStokAwal" min="0" class="w-full mt-1 rounded-lg border border-gray-200 px-3 py-2 text-sm">
+          <p class="text-xs text-textdark/50 mt-1">Ini adalah stok yang sudah ada sebelum periode laporan dimulai.</p>
+        </div>
+        <button onclick="saveStokAwal()" class="w-full py-2.5 rounded-lg bg-primary hover:bg-darkgreen text-white text-sm font-medium transition">Simpan Stok Awal</button>
+      </div>
+
+      <!-- TAB: PRODUKSI -->
+      <div id="tab-produksi" class="tab-content hidden">
+        <p class="text-xs text-textdark/50 mb-3"><i class="fa-solid fa-circle-info mr-1"></i>Data ini hanya untuk grafik produksi, tidak memengaruhi Total Stok. Total Stok dihitung dari Stok Awal + Barang Masuk − Barang Keluar.</p>
+        <div class="overflow-x-auto">
+          <table class="w-full text-sm">
+            <thead>
+              <tr class="text-left text-xs text-textdark/60 border-b border-gray-100">
+                <th class="py-2 pr-2">Bulan</th>
+                <th class="py-2 px-2">Frekuensi (Kali)</th>
+                <th class="py-2 px-2">Output (Karung)</th>
+              </tr>
+            </thead>
+            <tbody id="produksiRows"></tbody>
+          </table>
+        </div>
+        <button onclick="saveProduksi()" class="w-full mt-4 py-2.5 rounded-lg bg-primary hover:bg-darkgreen text-white text-sm font-medium transition">Simpan Data Produksi</button>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- ================= MODAL TAMBAH TRANSAKSI ================= -->
+<div id="modalTambahOverlay" class="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 hidden items-center justify-center p-4">
+  <div class="modal-panel bg-white rounded-[24px] shadow-2xl w-full max-w-md">
+    <div class="flex items-center justify-between px-6 pt-6 pb-3 border-b border-gray-100">
+      <h3 class="font-display text-lg font-semibold text-textdark">Tambah Data Transaksi</h3>
+      <button onclick="closeTambahModal()" class="w-8 h-8 rounded-full hover:bg-gray-100 flex items-center justify-center text-textdark/60"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+
+    <form onsubmit="submitTambah(event)" class="p-6 space-y-4">
+      <div>
+        <label class="text-xs font-medium text-textdark/70 mb-1.5 block">Jenis Transaksi</label>
+        <div class="grid grid-cols-2 gap-2">
+          <label class="jenis-option cursor-pointer">
+            <input type="radio" name="jenis" value="masuk" class="hidden peer" checked>
+            <div class="text-center text-sm font-medium py-2.5 rounded-lg border border-gray-200 peer-checked:bg-primary peer-checked:text-white peer-checked:border-primary transition text-textdark">
+              <i class="fa-solid fa-arrow-down mr-1"></i> Masuk
+            </div>
+          </label>
+          <label class="jenis-option cursor-pointer">
+            <input type="radio" name="jenis" value="keluar" class="hidden peer">
+            <div class="text-center text-sm font-medium py-2.5 rounded-lg border border-gray-200 peer-checked:bg-amber-600 peer-checked:text-white peer-checked:border-amber-600 transition text-textdark">
+              <i class="fa-solid fa-arrow-up mr-1"></i> Keluar
+            </div>
+          </label>
+        </div>
+      </div>
+      <div>
+        <label class="text-xs font-medium text-textdark/70">Tanggal</label>
+        <input type="date" id="tTanggal" required class="w-full mt-1 rounded-lg border border-gray-200 px-3 py-2 text-sm">
+      </div>
+      <div>
+        <label class="text-xs font-medium text-textdark/70">Jumlah (Karung)</label>
+        <input type="number" id="tJumlah" min="0" required class="w-full mt-1 rounded-lg border border-gray-200 px-3 py-2 text-sm">
+      </div>
+      <div>
+        <label class="text-xs font-medium text-textdark/70">Keterangan</label>
+        <input type="text" id="tKet" placeholder="Contoh: Kiriman ke distributor" class="w-full mt-1 rounded-lg border border-gray-200 px-3 py-2 text-sm">
+      </div>
+      <button type="submit" class="w-full py-2.5 rounded-lg bg-primary hover:bg-darkgreen text-white text-sm font-medium transition">Simpan Transaksi</button>
+    </form>
+  </div>
+</div>
+
+<script>
+/* ===================== DATA MODEL ===================== */
+const MONTHS = ["Jan","Feb","Mar","Apr","Mei","Jun","Jul","Agu","Sep","Okt","Nov","Des"];
+
+let state = {
+  productName: "Pupuk Organik Probiotik PR72",
+  periode: "",
+  beratPerKarung: 25,
+  stokAwal: 0,
+  bulan: MONTHS.map(m => ({ bulan: m, frekuensi: null, output: null })),
+  masuk: [],
+  keluar: []
+};
+
+let chartFrekuensi, chartOutput, chartMasukKeluar;
+
+/* ===================== LOCAL STORAGE (AUTO-SAVE) ===================== */
+const STORAGE_KEY = 'dashboardStokPR72';
+
+function saveToStorage(){
+  try{
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  }catch(err){
+    console.warn('Gagal menyimpan ke localStorage:', err);
+  }
+}
+
+function loadFromStorage(){
+  try{
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if(raw){
+      const data = JSON.parse(raw);
+      state = Object.assign({}, state, data);
+    }
+  }catch(err){
+    console.warn('Gagal memuat dari localStorage:', err);
+  }
+}
+
+/* ===================== UTIL ===================== */
+function fmtInt(n){ return Math.round(n).toLocaleString('id-ID'); }
+function fmtTon(n){ return n.toLocaleString('id-ID', {minimumFractionDigits:1, maximumFractionDigits:1}); }
+function uid(){ return Date.now().toString(36) + Math.random().toString(36).slice(2,6); }
+function sum(arr, key){ return arr.reduce((a,b)=> a + (Number(b[key])||0), 0); }
+
+function showToast(msg){
+  const t = document.getElementById('toast');
+  document.getElementById('toastMsg').textContent = msg;
+  t.classList.remove('hidden');
+  clearTimeout(window._toastTimer);
+  window._toastTimer = setTimeout(()=> t.classList.add('hidden'), 2200);
+}
+
+/* ===================== RENDER ===================== */
+function renderAll(){
+  saveToStorage();
+  renderHeader();
+  renderKPI();
+  renderCharts();
+  renderTransaksiChart();
+  renderTransaksiTable();
+}
+
+function renderHeader(){
+  document.getElementById('productName').textContent = state.productName || "Pupuk Organik Probiotik PR72";
+  document.getElementById('periodLabel').textContent = state.periode ? state.periode : 'Klik "Pengaturan" untuk mengatur periode laporan';
+  document.getElementById('chartPeriodLabel').textContent = state.periode ? `(${state.periode})` : '(atur periode di Pengaturan)';
+}
+
+function renderKPI(){
+  const totalKarung = state.stokAwal + sum(state.masuk,'karung') - sum(state.keluar,'karung');
+  const totalKg = totalKarung * (Number(state.beratPerKarung)||0);
+  const totalTon = totalKg / 1000;
+  document.getElementById('kpiKarung').textContent = fmtInt(totalKarung);
+  document.getElementById('kpiKg').textContent = fmtInt(totalKg);
+  document.getElementById('kpiTon').textContent = fmtTon(totalTon);
+}
+
+function renderCharts(){
+  const labels = state.bulan.map(b=>b.bulan);
+  const freq = state.bulan.map(b=> b.frekuensi===null? 0 : Number(b.frekuensi));
+  const out = state.bulan.map(b=> b.output===null? 0 : Number(b.output));
+
+  const freqCtx = document.getElementById('chartFrekuensi');
+  const outCtx = document.getElementById('chartOutput');
+
+  if(chartFrekuensi) chartFrekuensi.destroy();
+  chartFrekuensi = new Chart(freqCtx, {
+    type: 'bar',
+    data: { labels, datasets:[{ data: freq, backgroundColor:'#AEEA00', borderRadius:6, barThickness:14 }] },
+    options: {
+      indexAxis:'y',
+      responsive:true,
+      animation:{ duration:450, easing:'easeOutQuart' },
+      plugins:{ legend:{display:false},
+        datalabels:{ anchor:'end', align:'right', color:'#33691E', font:{weight:'600', size:11} } },
+      scales:{ x:{ grid:{color:'#F0F0F0'}, ticks:{color:'#607d8b'} }, y:{ grid:{display:false}, ticks:{color:'#263238'} } }
+    },
+    plugins:[ChartDataLabels]
+  });
+
+  const gradient = outCtx.getContext('2d').createLinearGradient(0,0,0,230);
+  gradient.addColorStop(0, '#66BB6A');
+  gradient.addColorStop(1, '#1B5E20');
+
+  if(chartOutput) chartOutput.destroy();
+  chartOutput = new Chart(outCtx, {
+    type:'bar',
+    data:{ labels, datasets:[{ data: out, backgroundColor: gradient, borderRadius:8, maxBarThickness:38 }] },
+    options:{
+      responsive:true,
+      animation:{ duration:450, easing:'easeOutQuart' },
+      plugins:{ legend:{display:false},
+        datalabels:{ anchor:'end', align:'top', color:'#1B5E20', font:{weight:'700', size:11} } },
+      layout:{ padding:{ top:20 } },
+      scales:{ y:{ grid:{color:'#F0F0F0'}, ticks:{color:'#607d8b'} }, x:{ grid:{display:false}, ticks:{color:'#263238'} } }
+    },
+    plugins:[ChartDataLabels]
+  });
+}
+
+function escapeHtml(str){
+  const d = document.createElement('div'); d.textContent = str; return d.innerHTML;
+}
+
+function getAllTransaksi(){
+  const masuk = state.masuk.map(i=> Object.assign({}, i, { jenis:'masuk' }));
+  const keluar = state.keluar.map(i=> Object.assign({}, i, { jenis:'keluar' }));
+  return masuk.concat(keluar).sort((a,b)=> (b.tanggal||'').localeCompare(a.tanggal||''));
+}
+
+function computeMonthlyTotals(){
+  const masukPerBulan = new Array(12).fill(0);
+  const keluarPerBulan = new Array(12).fill(0);
+  state.masuk.forEach(i=>{
+    if(!i.tanggal) return;
+    const m = new Date(i.tanggal + 'T00:00:00').getMonth();
+    if(!isNaN(m)) masukPerBulan[m] += Number(i.karung)||0;
+  });
+  state.keluar.forEach(i=>{
+    if(!i.tanggal) return;
+    const m = new Date(i.tanggal + 'T00:00:00').getMonth();
+    if(!isNaN(m)) keluarPerBulan[m] += Number(i.karung)||0;
+  });
+  return { masukPerBulan, keluarPerBulan };
+}
+
+function renderTransaksiChart(){
+  const { masukPerBulan, keluarPerBulan } = computeMonthlyTotals();
+  const ctx = document.getElementById('chartMasukKeluar');
+
+  if(chartMasukKeluar) chartMasukKeluar.destroy();
+  chartMasukKeluar = new Chart(ctx, {
+    type:'bar',
+    data:{
+      labels: MONTHS,
+      datasets:[
+        { label:'Masuk', data: masukPerBulan, backgroundColor:'#2E7D32', borderRadius:6, maxBarThickness:26 },
+        { label:'Keluar', data: keluarPerBulan, backgroundColor:'#D97706', borderRadius:6, maxBarThickness:26 }
+      ]
+    },
+    options:{
+      responsive:true,
+      animation:{ duration:450, easing:'easeOutQuart' },
+      plugins:{
+        legend:{ position:'top', align:'start', labels:{ usePointStyle:true, pointStyle:'circle', color:'#263238', font:{size:12} } },
+        datalabels:{ display:false }
+      },
+      scales:{
+        y:{ grid:{color:'#F0F0F0'}, ticks:{color:'#607d8b'} },
+        x:{ grid:{display:false}, ticks:{color:'#263238'} }
+      }
+    }
+  });
+}
+
+function renderTransaksiTable(){
+  document.getElementById('totalMasuk').textContent = fmtInt(sum(state.masuk,'karung'));
+  document.getElementById('totalKeluar').textContent = fmtInt(sum(state.keluar,'karung'));
+
+  const query = (document.getElementById('searchTransaksi')?.value || '').toLowerCase().trim();
+  let data = getAllTransaksi();
+  if(query){
+    data = data.filter(i=>
+      (i.tanggal||'').toLowerCase().includes(query) ||
+      (i.ket||'').toLowerCase().includes(query) ||
+      i.jenis.includes(query)
+    );
+  }
+
+  document.getElementById('transaksiRows').innerHTML = data.length
+    ? data.map(transaksiRow).join('')
+    : `<tr><td colspan="5" class="text-center text-xs text-textdark/40 py-8">Belum ada data transaksi</td></tr>`;
+}
+
+function transaksiRow(item){
+  const isMasuk = item.jenis === 'masuk';
+  const color = isMasuk ? 'text-primary' : 'text-amber-600';
+  const badge = isMasuk ? 'bg-primary/10' : 'bg-amber-500/10';
+  const icon = isMasuk ? 'fa-arrow-down' : 'fa-arrow-up';
+  const label = isMasuk ? 'Masuk' : 'Keluar';
+  return `
+    <tr class="border-b border-gray-50 hover:bg-graybg/50 transition">
+      <td class="py-3 pr-3 text-textdark/80">${item.tanggal||'-'}</td>
+      <td class="py-3 px-3">
+        <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full ${badge} ${color} font-semibold text-xs">
+          <i class="fa-solid ${icon}"></i> ${label}
+        </span>
+      </td>
+      <td class="py-3 px-3 font-medium text-textdark">${item.karung.toLocaleString('id-ID')}</td>
+      <td class="py-3 px-3 text-textdark/60">${item.ket ? escapeHtml(item.ket) : '—'}</td>
+      <td class="py-3 pl-3 text-right">
+        <button onclick="deleteEntry('${item.jenis}','${item.id}')" class="text-textdark/30 hover:text-red-500 transition"><i class="fa-solid fa-trash"></i></button>
+      </td>
+    </tr>`;
+}
+
+
+/* ===================== MODAL ===================== */
+function openModal(tab){
+  document.getElementById('inpProductName').value = state.productName;
+  document.getElementById('inpPeriode').value = state.periode;
+  document.getElementById('inpBerat').value = state.beratPerKarung;
+  document.getElementById('inpStokAwal').value = state.stokAwal;
+  renderProduksiRows();
+
+  document.getElementById('modalOverlay').classList.remove('hidden');
+  document.getElementById('modalOverlay').classList.add('flex');
+  switchTab(tab);
+}
+function closeModal(){
+  document.getElementById('modalOverlay').classList.add('hidden');
+  document.getElementById('modalOverlay').classList.remove('flex');
+}
+function switchTab(tab){
+  document.querySelectorAll('.tab-content').forEach(el=> el.classList.add('hidden'));
+  document.getElementById('tab-'+tab).classList.remove('hidden');
+  document.querySelectorAll('.tab-btn').forEach(b=> b.classList.remove('active'));
+  document.querySelector(`.tab-btn[data-tab="${tab}"]`).classList.add('active');
+}
+
+function renderProduksiRows(){
+  const rows = state.bulan.map((b,idx)=>`
+    <tr class="border-b border-gray-50">
+      <td class="py-2 pr-2 font-medium">${b.bulan}</td>
+      <td class="py-2 px-2"><input type="number" min="0" value="${b.frekuensi===null?'':b.frekuensi}" id="freq-${idx}" class="w-full rounded-lg border border-gray-200 px-2 py-1.5 text-sm"></td>
+      <td class="py-2 px-2"><input type="number" min="0" value="${b.output===null?'':b.output}" id="out-${idx}" class="w-full rounded-lg border border-gray-200 px-2 py-1.5 text-sm"></td>
+    </tr>`).join('');
+  document.getElementById('produksiRows').innerHTML = rows;
+}
+
+/* ===================== SAVE HANDLERS ===================== */
+function saveUmum(){
+  state.productName = document.getElementById('inpProductName').value.trim() || state.productName;
+  state.periode = document.getElementById('inpPeriode').value.trim();
+  state.beratPerKarung = Number(document.getElementById('inpBerat').value) || 0;
+  renderAll();
+  showToast('Pengaturan disimpan');
+}
+
+function saveStokAwal(){
+  state.stokAwal = Number(document.getElementById('inpStokAwal').value) || 0;
+  saveToStorage();
+  renderKPI();
+  showToast('Stok awal disimpan');
+}
+
+function saveProduksi(){
+  state.bulan = state.bulan.map((b,idx)=>{
+    const f = document.getElementById('freq-'+idx).value;
+    const o = document.getElementById('out-'+idx).value;
+    return { bulan: b.bulan, frekuensi: f===''? null : Number(f), output: o===''? null : Number(o) };
+  });
+  saveToStorage();
+  renderKPI();
+  renderCharts();
+  showToast('Data produksi disimpan');
+}
+
+function openTambahModal(){
+  document.getElementById('tTanggal').value = '';
+  document.getElementById('tJumlah').value = '';
+  document.getElementById('tKet').value = '';
+  document.querySelector('input[name="jenis"][value="masuk"]').checked = true;
+  document.getElementById('modalTambahOverlay').classList.remove('hidden');
+  document.getElementById('modalTambahOverlay').classList.add('flex');
+}
+function closeTambahModal(){
+  document.getElementById('modalTambahOverlay').classList.add('hidden');
+  document.getElementById('modalTambahOverlay').classList.remove('flex');
+}
+
+function submitTambah(e){
+  e.preventDefault();
+  const jenis = document.querySelector('input[name="jenis"]:checked').value;
+  const tgl = document.getElementById('tTanggal').value;
+  const jml = Number(document.getElementById('tJumlah').value)||0;
+  const ket = document.getElementById('tKet').value.trim();
+  state[jenis].push({ id: uid(), tanggal: tgl, karung: jml, ket });
+  saveToStorage();
+  renderKPI(); renderTransaksiChart(); renderTransaksiTable();
+  closeTambahModal();
+  showToast(jenis==='masuk' ? 'Barang masuk ditambahkan' : 'Barang keluar ditambahkan');
+}
+
+function deleteEntry(type, id){
+  state[type] = state[type].filter(i=> i.id !== id);
+  saveToStorage();
+  renderKPI(); renderTransaksiChart(); renderTransaksiTable();
+  showToast('Data dihapus');
+}
+
+/* ===================== EXPORT / IMPORT / RESET ===================== */
+function exportData(){
+  const blob = new Blob([JSON.stringify(state, null, 2)], {type:'application/json'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = 'data-stok-pr72.json'; a.click();
+  URL.revokeObjectURL(url);
+  showToast('Data diekspor');
+}
+
+function importData(e){
+  const file = e.target.files[0];
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = (ev)=>{
+    try{
+      const data = JSON.parse(ev.target.result);
+      state = Object.assign({}, state, data);
+      renderAll();
+      showToast('Data berhasil diimpor');
+    }catch(err){
+      alert('File tidak valid.');
+    }
+  };
+  reader.readAsText(file);
+  e.target.value = '';
+}
+
+function resetData(){
+  if(!confirm('Yakin ingin mengosongkan semua data? Tindakan ini tidak dapat dibatalkan.')) return;
+  state = {
+    productName: "Pupuk Organik Probiotik PR72",
+    periode: "", beratPerKarung: 25, stokAwal: 0,
+    bulan: MONTHS.map(m=>({bulan:m, frekuensi:null, output:null})),
+    masuk: [], keluar: []
+  };
+  renderAll();
+  showToast('Data direset');
+}
+
+/* ===================== INIT ===================== */
+loadFromStorage();
+renderAll();
+</script>
+</body>
+</html>
